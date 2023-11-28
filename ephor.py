@@ -58,7 +58,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.https:
-        app.run(debug=args.debug, ssl_context=('cert.pem', 'key.pem'))
+        app.run(debug=args.debug, ssl_context=('cert.pem', 'key.pem'), host='0.0.0.0')
         logs.append({str(datetime.datetime.now()): "Running server on HTTPS!"})
     else:
-        app.run(debug=args.debug)
+        app.run(debug=args.debug, host='0.0.0.0')

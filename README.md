@@ -14,6 +14,7 @@ Ephor is a RESTful, minimalistic, ephemeral pastebin server designed for quick a
 ## Endpoints
 
 - `POST /upload`: Upload a file with an optional duration (default is 120 seconds). The file will be deleted automatically after this duration.
+- `DELETE /files/<filename>?key={UUID}`: Delete a file manually before it's timer.
 - `GET /files`: Lists all currently stored files.
 - `GET /files/<filename>`: Retrieve a specific file.
 - `GET /logs`: View logs of server activities.
@@ -23,6 +24,16 @@ Ephor is a RESTful, minimalistic, ephemeral pastebin server designed for quick a
 - `duration=` : How long the file will stay active for (in seconds)
 
 ## Running the Server
+
+### Installation
+
+Ensure you have Python and Flask installed. Place your SSL certificate (`cert.pem`) and key (`key.pem`) in the same directory as the script for HTTPS support. Do NOT expose these to the public! Register with local CA to prevent self-signed warnings.
+
+1. Install Python >=3.11.6 && `pip`
+
+2. `pip install flask`
+
+### Example Usage
 
 1. **Normal Mode**:
    ```bash
@@ -37,12 +48,7 @@ Ephor is a RESTful, minimalistic, ephemeral pastebin server designed for quick a
    python3 ephor.py --https
    ```
 
-## Installation
-
-Ensure you have Python and Flask installed. Place your SSL certificate (`cert.pem`) and key (`key.pem`) in the same directory as the script for HTTPS support. Do NOT expose these to the public! Register with local CA to prevent self-signed warnings.
-
-
-## Examples
+## Interacting w/ Server
 The following examples are via `curl`. You can use Postman or other REST-based clients.
 
 ```

@@ -11,42 +11,42 @@ app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-logs = [{str(datetime.datetime.now()): 'Server started! 🎉'}] # init logs
-deletion_keys = [] # init deletion keys
+logs = [{str(datetime.datetime.now()): 'Server started! 🎉'}]
+deletion_keys = []
 
 @app.route('/logs', methods=['GET'])
-def show_logs(): # upload / delete logs
+def show_logs():
     return jsonify(logs)
 
 def delete_file_after_delay(filename, delay):
     time.sleep(delay)
+    filepath = os.path.join(UPLOAD_FOLDER, filename)
     app.logger.info('Deleting file (%ds): %s', delay, filename)
     logs.append({str(datetime.datetime.now()): 'Deleted file %s after %d seconds' % (filename, delay)})
-    if os.path.isfile(os.path.join(UPLOAD_FOLDER, filename)):
-        os.remove(os.path.join(UPLOAD_FOLDER, filename))
+    if os.path.isfile(filepath):
+        os.remove(filepath)
+        return True, 'Successfully deleted: %s' % filename
     else:
         error = 'Unable to delete file: %s. File not found.' % filename
         app.logger.info(error)
         logs.append({str(datetime.datetime.now()): error})
-        return jsonify({'message': error})
+        return False, error
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
     file = request.files['file']
-    duration = int(request.form.get('duration', 120))  # Default duration: 120 seconds
+    duration = int(request.form.get('duration', 120))
     filename = file.filename
     file_path = os.path.join(UPLOAD_FOLDER, filename)
     file.save(file_path)
 
-    # Successful load
-    app.logger.info('Succesfully uploaded: %s. Removing after %d seconds', filename, duration)
+    app.logger.info('Successfully uploaded: %s. Removing after %d seconds', filename, duration)
     logs.append({str(datetime.datetime.now()): 'Successfully uploaded %s' % (filename)})
 
-    # Start a thread to delete the file after the specified duration
     thread = threading.Thread(target=delete_file_after_delay, args=(filename, duration))
     thread.start()
 
-    delete_key = uuid.uuid4()
+    delete_key = str(uuid.uuid4())
     deletion_keys.append(delete_key)
 
     return jsonify({'message': 'File uploaded successfully', 'filename': filename, 'deletion_key': delete_key})
@@ -59,13 +59,22 @@ def list_files():
 @app.route('/files/<filename>', methods=['GET', 'DELETE'])
 def get_file(filename):
     if request.method == 'DELETE':
-        delete_key = request.args.get('key')
-        if delete_key.length > 0 and delete_key in deletion_keys: # deletion called
-            status = delete_file_after_delay(filename, 0)
-            if 'message' in status:
-                return jsonify({'message': status.message})
+        try:
+            delete_key_str = request.args.get('key')
+            delete_key = uuid.UUID(delete_key_str)
+        except ValueError:
+            app.logger.info('Invalid key type request; key: %s', delete_key_str)
+            return jsonify({'message': 'Invalid key type request'}), 400
+
+        if delete_key_str in deletion_keys:
+            success, message = delete_file_after_delay(filename, 0)
+            if success:
+                return jsonify({'message': message}), 200
             else:
-                return jsonify({'message': 'Successfully deleted: %s' % filename})
+                return jsonify({'message': message}), 404
+        else:
+            return jsonify({'message': 'Unable to delete file, no key found.'}), 404
+
     if request.method == 'GET':
         if filename not in os.listdir(UPLOAD_FOLDER):
             app.logger.info('Attempted to find: %s. File not found!', filename)

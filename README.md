@@ -1,71 +1,84 @@
-# Ephor: The Ephemeral Pastebin
+# Ephor: Ephemeral Pastebin Service
 
-Ephor is a RESTful, minimalistic, ephemeral pastebin server designed for quick and secure temporary hosting of documents. It supports both HTTP and HTTPS endpoints and automatically deletes files after a user-defined duration. With its focus on simplicity and lightweight architecture, Ephor is perfect for developers, teams, and individuals seeking an efficient solution for short-term data sharing.
+Ephor is a sleek, ephemeral pastebin service crafted for secure and transient document hosting. Engineered with RESTful principles, Ephor caters to developers and teams who need a reliable platform for temporary data exchange. Supporting both HTTP and HTTPS, Ephor stands out with its user-centric design that prioritizes ease of use and security.
 
-## Features
+## Key Features
 
-- **Ephemeral Storage**: Automatically deletes documents after a specified time frame.
-- **HTTP/HTTPS Support**: Offers flexibility to host documents over HTTP or HTTPS.
-- **Upload & Retrieval API**: Easy-to-use RESTful API for uploading and retrieving documents.
-- **Logging**: Maintains logs of server activities, including file uploads and deletions.
-- **Debugging Mode**: An option to enable debugging for detailed server logs.
-- **File Directory Viewing**: Provides an endpoint to view the list of currently stored files.
+- **Transient File Storage**: Automates the deletion of documents post a user-specified lifespan.
+- **Dual Protocol Support**: Facilitates document hosting via HTTP or HTTPS, ensuring versatility.
+- **RESTful API**: Streamlined API endpoints for document upload and retrieval processes.
+- **Activity Logging**: Comprehensive logging of server actions, including document lifecycle events.
+- **Debugging Support**: Offers a debugging mode for in-depth server operation insights.
+- **Directory Listing**: Endpoint availability to inspect the list of present documents.
 
-## Endpoints
+## API Endpoints
 
-- `POST /upload`: Upload a file with an optional duration (default is 120 seconds). The file will be deleted automatically after this duration.
-- `DELETE /files/<filename>?key={UUID}`: Delete a file manually before it's timer.
-- `GET /files`: Lists all currently stored files.
-- `GET /files/<filename>`: Retrieve a specific file.
-- `GET /logs`: View logs of server activities.
+- `POST /upload` - Uploads a document with an optional lifespan (defaults to 120 seconds).
+- `DELETE /files/<filename>?key={UUID}` - Allows manual document deletion using a unique key.
+- `GET /files` - Enumerates all stored documents.
+- `GET /files/<filename>` - Facilitates retrieval of a specific document.
+- `GET /logs` - Accesses logs of server operations.
 
-#### POST Parameters
-- `file=` : The file that will be uploaded to the server
-- `duration=` : How long the file will stay active for (in seconds)
+### POST Parameters
 
-## Running the Server
+- `file` - The document to be uploaded.
+- `duration` - The active duration of the document on the server (in seconds).
 
-### Installation
+## Getting Started
 
-Ensure you have Python and Flask installed. Place your SSL certificate (`cert.pem`) and key (`key.pem`) in the same directory as the script for HTTPS support. Do NOT expose these to the public! Register with local CA to prevent self-signed warnings.
+### Prerequisites
 
-1. Install Python >=3.11.6 && `pip`
+- Python 3.11.6 or higher
+- Flask
+- SSL certificate (`cert.pem`) and key (`key.pem`) for HTTPS setup.
 
-2. `pip install flask`
+### Setup and Installation
 
-### Example Usage
+1. Ensure Python and `pip` are installed on your system.
+2. Install Flask using `pip`:
+   ```bash
+   pip install flask
+   ```
 
-1. **Normal Mode**:
+### Launching the Server
+
+1. **Standard Mode**:
    ```bash
    python3 ephor.py
    ```
-2. **Debug Mode**:
+2. **Debug Mode** (for detailed logging):
    ```bash
    python3 ephor.py --debug
    ```
-3. **HTTPS Mode** (requires `cert.pem` and `key.pem`):
+3. **HTTPS Mode** (requires SSL certificates):
    ```bash
    python3 ephor.py --https
    ```
 
-## Interacting w/ Server
-The following examples are via `curl`. You can use Postman or other REST-based clients.
+## Interacting with the Server
 
-```
-(POST)
-curl -X POST -F "file=@/directory/banana.md" -F "duration=60" http://127.0.0.1:5000/upload
-```
+Utilize `curl` for command-line interactions, or opt for any RESTful client like Postman.
 
-```
-(GET)
-curl -X GET http://127.0.0.1:5000/files/banana.md
+Upload a document:
+```bash
+curl -X POST -F "file=@/path/to/document.txt" -F "duration=60" http://127.0.0.1:5000/upload
 ```
 
-To bypass self-signed warnings in `curl`:
-```
-curl -k -X POST/GET ...
+Retrieve a document:
+```bash
+curl -X GET http://127.0.0.1:5000/files/document.txt
 ```
 
-## Contributing
+> Note: Use `curl -k` to ignore self-signed SSL warnings during local testing.
 
-Contributions, feedback, and suggestions are welcome! Please feel free to fork the repository, make changes, and submit pull requests.
+## How to Contribute
+
+Your contributions make Ephor better! To contribute:
+
+1. Fork the repository.
+2. Create a new branch for your feature or fix.
+3. Commit your changes.
+4. Push to your branch.
+5. Submit a pull request.
+
+We appreciate your input and are open to your ideas and feedback.

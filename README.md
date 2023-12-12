@@ -50,9 +50,9 @@ Ephor is a sleek, ephemeral pastebin service crafted for secure and transient do
    ```bash
    python3 ephor.py --debug
    ```
-3. **HTTPS Mode** (requires SSL certificates):
+3. **HTTPS Mode** (requires SSL certificates, enables unique filenames):
    ```bash
-   python3 ephor.py --https
+   python3 ephor.py --https --unique
    ```
 
 ## Interacting with the Server
@@ -64,9 +64,15 @@ Upload a document:
 curl -X POST -F "file=@/path/to/document.txt" -F "duration=60" http://127.0.0.1:5000/upload
 ```
 
-Retrieve a document:
+Retrieve a document(s):
 ```bash
+curl -X GET http://127.0.0.1:5000/files
 curl -X GET http://127.0.0.1:5000/files/document.txt
+```
+
+Delete a document:
+```bash
+curl -X DELETE http://127.0.0.1:5000/files/document.txt\?key\=72772ee2-b0f7-4a32-8f13-756640c108c7
 ```
 
 > Note: Use `curl -k` to ignore self-signed SSL warnings during local testing.

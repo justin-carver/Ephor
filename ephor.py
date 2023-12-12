@@ -1,6 +1,6 @@
 from flask import Flask, abort, request, send_from_directory, jsonify
+import json
 import argparse
-import datetime
 import os
 import queue
 import threading
@@ -9,6 +9,7 @@ import uuid
 
 app = Flask(__name__)
 
+ALLOWED_EXTENSIONS = set()
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -33,7 +34,7 @@ def delete_file_after_delay(filename, delay):
         return False, error
 
 def producer_queue_del(q, filename, delay):
-     q.put((filename, delay))
+    q.put((filename, delay))
 
 def consumer_queue_del(q):
     while not stop_thread.is_set():
@@ -48,15 +49,32 @@ def stop_consumer():
     stop_thread.set()
     con_thread.join()
 
-@app.route('/logs', methods=['GET'])
-def show_logs():
-    return jsonify(logs)
+def load_allowed_extensions():
+    global ALLOWED_EXTENSIONS
+    try:
+        with open('extensions.json', 'r') as f:
+            data = json.load(f)
+            ALLOWED_EXTENSIONS = set(data["allowed_extensions"])
+    except FileNotFoundError:
+        app.logger.error("extensions.json file not found.")
+        ALLOWED_EXTENSIONS = set()
+    except json.JSONDecodeError:
+        app.logger.error("Error decoding extensions.json.")
+        ALLOWED_EXTENSIONS = set()
 
+def is_extension_allowed(filename):
+    ext = os.path.splitext(filename)[1].lower()
+    return ext in ALLOWED_EXTENSIONS
+
+# Routes ---
 @app.route('/upload', methods=['POST'])
 def upload_file():
     file = request.files['file']
+    if not file or not is_extension_allowed(file.filename):
+        return jsonify({'message': 'File extension not allowed'}), 400
+
     delay = int(request.form.get('duration', 120)) # default delay
-    filename = file.filename if not flags['UNIQUE'] else str('%s_%s' % (int(time.time() * 1000000), file.filename))
+    filename = file.filename if not flags['UNIQUE'] else f"{int(time.time() * 1000000)}_{file.filename}"
     file_path = os.path.join(UPLOAD_FOLDER, filename)
     file.save(file_path)
 
@@ -68,8 +86,8 @@ def upload_file():
     delete_key = str(uuid.uuid4())
     deletion_keys.append(delete_key)
 
-    return jsonify({'message': 'File uploaded successfully', \
-    'filename': filename, 'deletion_key': delete_key})
+    return jsonify({'message': 'File uploaded successfully',
+                    'filename': filename, 'deletion_key': delete_key})
 
 @app.route('/files', methods=['GET'])
 def list_files():
@@ -79,24 +97,26 @@ def list_files():
 @app.route('/files/<filename>', methods=['GET', 'DELETE'])
 def get_file(filename):
     if request.method == 'DELETE':
-        try:
-            delete_key_str = request.args.get('key')
-            delete_key = uuid.UUID(delete_key_str)
-        except ValueError:
-            app.logger.error('Invalid key type request; key used: %s', delete_key_str)
-            return abort(400)
+        delete_key_str = request.args.get('key')
+        if not delete_key_str:
+            app.logger.error('No deletion key provided. Bad Request.')
+            return jsonify({'message': 'No deletion key provided'}), 400
 
-        if delete_key_str in deletion_keys:
-            success, message = delete_file_after_delay(filename, 0) # manual file deletion
+        if delete_key_str not in deletion_keys:
+            app.logger.error('Deletion key not found or invalid. Key: %s on File: %s', delete_key_str, filename)
+            return jsonify({'message': 'Deletion key not found or invalid.'}), 403
+
+        try:
+            success, message = delete_file_after_delay(filename, 0)  # manual file deletion
             if success:
-                app.logger.info('Manually deleted \'%s\' using key %s' % (filename, delete_key_str))
+                app.logger.info('Manually deleted \'%s\' using key %s', filename, delete_key_str)
                 return jsonify({'message': message}), 200
             else:
-                app.logger.error('Unable to delete file, delete key invalid. Key used: %s' % delete_key_str)
-                return jsonify({'message': message}), 404
-        else:
-            app.logger.error('Unable to delete file, no key found.')
-            return jsonify({'message': 'Unable to delete file, no key found.'}), 404
+                app.logger.error('Failed to delete file \'%s\' using key %s', filename, delete_key_str)
+                return jsonify({'message': message}), 500  # Internal Server Error
+        except Exception as e:
+            app.logger.error('Unexpected error occurred: %s', str(e))
+            return jsonify({'message': 'Internal Server Error'}), 500
 
     if request.method == 'GET':
         if filename not in os.listdir(UPLOAD_FOLDER):
@@ -110,18 +130,20 @@ if __name__ == '__main__':
     parser.add_argument('--https', action='store_true', help='Run server with HTTPS')
     parser.add_argument('--unique', action='store_true', help='Enforces unique file names')
     args = parser.parse_args()
+    
+    load_allowed_extensions() # prepare 
 
     con_thread = threading.Thread(target=consumer_queue_del, args=(q,))
     con_thread.start() # start consumer thread
 
-    if args.unique: flags['UNIQUE'] = True
+    if args.unique: flags['UNIQUE'] = True # more flags to come
     if args.https:
         try:
-            app.run(debug=args.debug, ssl_context=('cert.pem', 'key.pem'), host='0.0.0.0')
+            app.run(debug=args.debug, ssl_context=('cert.pem', 'key.pem'), use_reloader=False, host='0.0.0.0')
             app.logger.info('Starting server in HTTPS mode!')
         except Exception as e:
-            app.logger.info('Issue attempting to start server in HTTPS mode...')
+            app.logger.error('Issue attempting to start server in HTTPS mode...')
             app.logger.error(e)
     else:
-        app.run(debug=args.debug, host='0.0.0.0')
+        app.run(debug=args.debug, use_reloader=False, host='0.0.0.0')
         app.logger.info('Starting server!')
